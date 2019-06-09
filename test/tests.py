@@ -1,7 +1,8 @@
 import unittest
 import requests
-from diplom import drop_tables_found_people, create_tables_found_people, sort_db_from_common_group_and_friends
+from diplom import drop_tables_found_people, create_tables_found_people
 import psycopg2
+
 
 class CaseTests (unittest.TestCase):
 
@@ -30,7 +31,8 @@ class CaseTests (unittest.TestCase):
         response = requests.get('https://api.vk.com/method/users.get', params)
         t = response.json()
         print(t['error']['error_msg'])
-        self.assertEqual(t['error']['error_msg'], 'User authorization failed: invalid access_token (4).', 'Не соответствует код запроса')
+        self.assertEqual(t['error']['error_msg'], 'User authorization failed: invalid access_token (4).', \
+                         'Не соответствует код запроса')
 
     def test_sort_db(self):
         with psycopg2.connect("dbname ='found_people_db' user = 'postgres' password = '1'  host ='localhost'") as conn:
@@ -44,13 +46,15 @@ class CaseTests (unittest.TestCase):
         self.assertNotEqual(records1, records2, 'Сортировка БД не работает')
 
     def test_double_create_data_base(self):
-        create_tables_found_people()
-        create_tables_found_people()
-#       это можно считать отрицательным тестом? проверка того  что база данных создается
+        with psycopg2.connect("dbname ='found_people_db' user = 'postgres' password = '1'  host ='localhost'") as conn:
+            create_tables_found_people(conn)
+            create_tables_found_people(conn)
+    #       это можно считать отрицательным тестом? проверка того  что база данных создается
 
     def test_create_del_db(self):
-        drop_tables_found_people()
-        create_tables_found_people()
-        drop_tables_found_people()
-        create_tables_found_people()
+        with psycopg2.connect("dbname ='found_people_db' user = 'postgres' password = '1'  host ='localhost'") as conn:
+            drop_tables_found_people(conn)
+            create_tables_found_people(conn)
+            drop_tables_found_people(conn)
+            create_tables_found_people(conn)
 
