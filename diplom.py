@@ -1,6 +1,4 @@
-from pprint import pprint
 import requests
-from urllib.parse import urlencode
 import json
 import psycopg2
 import re
@@ -73,7 +71,7 @@ def params_for_search(id_info_vk):
         sex = '1'
     else:
         sex = '0'
-    status_input = input('Введите интересующее вас семейное положение: 1 -не женат (не замужем) 2 — в активном поиске;')
+    status_input = input('Введите интересующее семейное положение: 1 - не женат (не замужем) 2 - в активном поиске')
     if status_input == '1':
         status = '1'
     elif status_input == '2':
@@ -117,8 +115,7 @@ def params_for_search(id_info_vk):
     return response.json()
 
 
-def create_tables_found_people():
-    with psycopg2.connect("dbname ='found_people_db' user = 'postgres' password = '1'  host ='localhost'") as conn:
+def create_tables_found_people(conn):
         with conn.cursor() as cur:
             cur.execute('''
                 CREATE TABLE found_people (
@@ -135,8 +132,7 @@ def create_tables_found_people():
             ''')
 
 
-def drop_tables_found_people():
-    with psycopg2.connect("dbname ='found_people_db' user = 'postgres' password = '1'  host ='localhost'") as conn:
+def drop_tables_found_people(conn):
         with conn.cursor() as cur:
             cur.execute('''
                 DROP TABLE found_people;
@@ -155,7 +151,7 @@ def get_friends_for_found_peolple(id_vvvk):
     return response.json()['response']['items']
 
 
-def add_found_people(found_people_list_in_vk):
+def add_found_people(found_people_list_in_vk, conn):
     for item in found_people_list_in_vk:
         id_vk = (item['id'])
         try:
@@ -182,29 +178,24 @@ def add_found_people(found_people_list_in_vk):
         movies = item.get('movies')
         music = item.get('music')
         books = item.get('books')
-        with psycopg2.connect("dbname ='found_people_db' user = 'postgres' password = '1'  host ='localhost'") as conn:
-            with conn.cursor() as cur:
-                cur.execute(""" 
-                    INSERT INTO found_people (id_vk, first_name, last_name,interests,movies,music,books,common_count,\
-                    common_group) VALUES ('%s',$$%s$$,$$%s$$,$Q$%s$Q$,$Q$%s$Q$,$Q$%s$Q$,$Q$%s$Q$,'%s',$$%s$$);
-
-                    """ % (id_vk, first_name, last_name, interests, movies, music, books, common_friend, common_group)
-                            )
+        with conn.cursor() as cur:
+            cur.execute("""
+                INSERT INTO found_people (id_vk, first_name, last_name,interests,movies,music,books,common_count,\
+                common_group) VALUES ('%s',$$%s$$,$$%s$$,$Q$%s$Q$,$Q$%s$Q$,$Q$%s$Q$,$Q$%s$Q$,'%s',$$%s$$);
+                """ % (id_vk, first_name, last_name, interests, movies, music, books, common_friend, common_group))
         print('...')
 
 
-def sort_db_from_common_group_and_friends():
-    with psycopg2.connect("dbname ='found_people_db' user = 'postgres' password = '1'  host ='localhost'") as conn:
+def sort_db_from_common_group_and_friends(conn):
         with conn.cursor() as cur:
             cur.execute('SELECT * FROM found_people ORDER BY common_count DESC, common_group DESC;')
             records = cur.fetchall()
             return records
 
 
-def get_photo(sort_list_for_f):
-    with psycopg2.connect("dbname ='found_people_db' user = 'postgres' password = '1'  host ='localhost'") as conn:
-        with conn.cursor() as cur:
-            cur.execute('''
+def get_photo(sort_list_for_f, conn):
+    with conn.cursor() as cur:
+        cur.execute('''
                 CREATE TABLE photo_people (
     id serial PRIMARY KEY,
     id_vk integer,
@@ -224,29 +215,25 @@ def get_photo(sort_list_for_f):
                 likes = (photo['likes']['count'])
                 for c in (photo['sizes']):
                     url = (c['url'])
-                with psycopg2.connect(
-                        "dbname ='found_people_db' user = 'postgres' password = '1'  host ='localhost'") as conn:
-                    with conn.cursor() as cur:
-                        cur.execute(""" 
-                                          INSERT INTO photo_people (id_vk,likes, URL) VALUES ('%s','%s',$$%s$$);
-                                   """ % (id_list, likes, url))
+                with conn.cursor() as cur:
+                    cur.execute("""
+                                      INSERT INTO photo_people (id_vk,likes, URL) VALUES ('%s','%s',$$%s$$);
+                               """ % (id_list, likes, url))
         except KeyError:
             print('Нашлось менее 10 совпадений')
         i += 1
     photo_dic = {}
-    with psycopg2.connect("dbname ='found_people_db' user = 'postgres' password = '1'  host ='localhost'") as conn:
-        with conn.cursor() as cur:
-            cur.execute('SELECT * FROM photo_people ORDER BY id_vk DESC, likes DESC;')
-            records = cur.fetchall()
-            for x in records:
-                photo_dic[int(x[1])] = []
-            for x in records:
-                photo_dic[int(x[1])].append(x[3])
+    with conn.cursor() as cur:
+        cur.execute('SELECT * FROM photo_people ORDER BY id_vk DESC, likes DESC;')
+        records = cur.fetchall()
+        for x in records:
+            photo_dic[int(x[1])] = []
+        for x in records:
+            photo_dic[int(x[1])].append(x[3])
     return photo_dic
 
 
-def drop_table_photo_people():
-    with psycopg2.connect("dbname ='found_people_db' user = 'postgres' password = '1'  host ='localhost'") as conn:
+def drop_table_photo_people(conn):
         with conn.cursor() as cur:
             cur.execute('''
                 DROP TABLE photo_people;
@@ -254,7 +241,7 @@ def drop_table_photo_people():
 
 
 def result_json(sort_list_vk):
-    photo_list = get_photo(sort_list_vk)
+    photo_list = get_photo(sort_list_vk, conn)
     result_file = []
     i = 0
     while i < 10:
@@ -286,33 +273,31 @@ def regexp(patern, text):
     return result
 
 
-def sort_by_interests(id_info):
+def sort_by_interests(id_info, conn):
     if id_info[0]['interests'] == '':
         interes_id = input('Введите ваши интересы, например: музыка')
     else:
         interes_id = id_info[0]['interests']
     sort_list_by_interest = []
-    for q in sort_db_from_common_group_and_friends():
+    for q in sort_db_from_common_group_and_friends(conn):
         res = regexp(interes_id, q[4])
         if res == 1:
             sort_list_by_interest.append(q)
     try:
-        with psycopg2.connect("dbname ='found_people_db' user = 'postgres' password = '1'  host ='localhost'") as conn:
-            with conn.cursor() as cur:
-                cur.execute('''
-                    CREATE TABLE photo_people_int (
-        id serial PRIMARY KEY,
-        id_vk numeric,
-        likes numeric,
-        URL  text);
-                ''')
-    except:
+        with conn.cursor() as cur:
+            cur.execute('''
+                CREATE TABLE photo_people_int (
+    id serial PRIMARY KEY,
+    id_vk numeric,
+    likes numeric,
+    URL  text);
+            ''')
+    except psycopg2.errors.DuplicateTable:
         with psycopg2.connect("dbname ='found_people_db' user = 'postgres' password = '1'  host ='localhost'") as conn:
             with conn.cursor() as cur:
                 cur.execute('''
                     DROP TABLE photo_people_int;
                 ''')
-        with psycopg2.connect("dbname ='found_people_db' user = 'postgres' password = '1'  host ='localhost'") as conn:
             with conn.cursor() as cur:
                 cur.execute('''
                     CREATE TABLE photo_people_int (
@@ -336,33 +321,28 @@ def sort_by_interests(id_info):
                 likes = ((z['likes']['count']))
                 for c in (z['sizes']):
                     url = ((c['url']))
-                with psycopg2.connect(
-                        "dbname ='found_people_db' user = 'postgres' password = '1'  host ='localhost'") as conn:
-                    with conn.cursor() as cur:
-                        cur.execute("""
-                                      INSERT INTO photo_people_int (id_vk,likes, URL) VALUES ('%s','%s',$$%s$$);
-                                   """ % (list_by_int, likes, url))
+                with conn.cursor() as cur:
+                    cur.execute("""
+                                  INSERT INTO photo_people_int (id_vk,likes, URL) VALUES ('%s','%s',$$%s$$);
+                               """ % (list_by_int, likes, url))
         except IndexError:
             print('нет 10-и в поиске')
-
         i += 1
-
     photo_dic = {}
-    with psycopg2.connect("dbname ='found_people_db' user = 'postgres' password = '1'  host ='localhost'") as conn:
-        with conn.cursor() as cur:
-            cur.execute('SELECT * FROM photo_people_int ORDER BY id_vk DESC, likes DESC;')
-            records = cur.fetchall()
-            for x in records:
-                photo_dic[int(x[1])] = []
-            for x in records:
-                photo_dic[int(x[1])].append(x[3])
+    with conn.cursor() as cur:
+        cur.execute('SELECT * FROM photo_people_int ORDER BY id_vk DESC, likes DESC;')
+        records = cur.fetchall()
+        for x in records:
+            photo_dic[int(x[1])] = []
+        for x in records:
+            photo_dic[int(x[1])].append(x[3])
     photo_list = photo_dic
     result_file = []
     i = 0
     while i < 10:
+        result = []
         try:
             id_l = sort_list_by_interest[i][1]
-            result = []
             result.append(id_l)
             for h in range(2, 7):
                 result.append(sort_list_by_interest[i][h])
@@ -374,7 +354,6 @@ def sort_by_interests(id_info):
         except IndexError:
             result.append('None')
         result_file.append(result)
-        result = []
         i += 1
     with open('result_int.json', 'w', encoding='utf-8') as file:
         json.dump(result_file, file, indent=4, ensure_ascii=False)
@@ -382,26 +361,31 @@ def sort_by_interests(id_info):
 
 
 if __name__ == '__main__':
-    id_l = get_id()
-    us = User(TOKEN, id_l)
-    group_list = us.get_groups()
-    friend_list = us.get_friends()
-    id_info = us.get_info()
-    found_people_list = (params_for_search(id_info)['response']['items'])
-    print('Программа берет выборку 1000 пользователей и сохраняет в БД, поэтому работает ну ОЧЕНЬ долго!!! ')
-    try:
-        create_tables_found_people()
-    except:
-        drop_tables_found_people()
-        create_tables_found_people()
-    add_found_people(found_people_list)
-    sort_list = sort_db_from_common_group_and_friends()
-    try:
-        result_json(sort_list)
-    except:
-        drop_table_photo_people()
-        result_json(sort_list)
-    print('Результат вы найдете в json файле')
-    x = input('Если вы хотите продолжить поиск по вашим интересам введите 1 ')
-    if x == '1':
-        sort_by_interests(id_info)
+    with psycopg2.connect("dbname ='found_people_db' user = 'postgres' password = '1'  host ='localhost'") as conn:
+        id_l = get_id()
+        us = User(TOKEN, id_l)
+        group_list = us.get_groups()
+        friend_list = us.get_friends()
+        id_info = us.get_info()
+        found_people_list = (params_for_search(id_info)['response']['items'])
+        print('Программа берет выборку 1000 пользователей и сохраняет в БД, поэтому работает ну ОЧЕНЬ долго!!! ')
+        try:
+            create_tables_found_people(conn)
+        except psycopg2.errors.DuplicateTable:
+            with psycopg2.connect(
+                    "dbname ='found_people_db' user = 'postgres' password = '1'  host ='localhost'") as conn:
+                drop_tables_found_people(conn)
+                create_tables_found_people(conn)
+        add_found_people(found_people_list, conn)
+        sort_list = sort_db_from_common_group_and_friends(conn)
+        try:
+            result_json(sort_list)
+        except psycopg2.errors.DuplicateTable:
+            with psycopg2.connect(
+                    "dbname ='found_people_db' user = 'postgres' password = '1'  host ='localhost'") as conn:
+                drop_table_photo_people(conn)
+                result_json(sort_list)
+        print('Результат вы найдете в json файле')
+        x = input('Если вы хотите продолжить поиск по вашим интересам введите 1 ')
+        if x == '1':
+            sort_by_interests(id_info, conn)
