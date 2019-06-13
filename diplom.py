@@ -2,6 +2,7 @@ import requests
 import json
 import psycopg2
 import re
+import collections
 
 TOKEN = '616abfd7ccc76114b3e9742e70bd66918aeece2aee635a5f994465bf44b30505b5b475922db82f5acb370'
 
@@ -139,31 +140,24 @@ def drop_tables_found_people(conn):
             ''')
 
 
-def get_groups_for_found_people(id_vvk):
+def get_info_for_found_people(id_vvk, metod):
     params = {'access_token': TOKEN, 'user_id': id_vvk, 'extended': 0, 'v': 5.92}
-    response = requests.get('https://api.vk.com/method/groups.get', params)
+    response = requests.get('https://api.vk.com/method/%s.get' %(metod), params)
     return response.json()['response']
-
-
-def get_friends_for_found_peolple(id_vvvk):
-    params = {'access_token': TOKEN, 'user_id': id_vvvk, 'extended': 0, 'v': 5.92}
-    response = requests.get('https://api.vk.com/method/friends.get', params)
-    return response.json()['response']['items']
-
 
 def add_found_people(found_people_list_in_vk, conn):
     for item in found_people_list_in_vk:
         id_vk = (item['id'])
         try:
             common_friend = 0
-            list_friend_for_found_people = get_friends_for_found_peolple(id_vk)
-            for z in list_friend_for_found_people:
+            list_friend_for_found_people = get_info_for_found_people(id_vk, 'friends')
+            for z in list_friend_for_found_people['items']:
                 if z in friend_list:
                     common_friend += 1
         except KeyError:
             common_friend = 0
         try:
-            list_group_for_found_people = get_groups_for_found_people(id_vk)
+            list_group_for_found_people = get_info_for_found_people(id_vk, 'groups')
             common_group = ''
             for z in list_group_for_found_people['items']:
                 if z in group_list['items']:
@@ -222,12 +216,10 @@ def get_photo(sort_list_for_f, conn):
         except KeyError:
             print('Нашлось менее 10 совпадений')
         i += 1
-    photo_dic = {}
+    photo_dic = collections.defaultdict(list)
     with conn.cursor() as cur:
         cur.execute('SELECT * FROM photo_people ORDER BY id_vk DESC, likes DESC;')
         records = cur.fetchall()
-        for x in records:
-            photo_dic[int(x[1])] = []
         for x in records:
             photo_dic[int(x[1])].append(x[3])
     return photo_dic
@@ -244,21 +236,17 @@ def result_json(sort_list_vk):
     photo_list = get_photo(sort_list_vk, conn)
     result_file = []
     i = 0
+    photo_limit = 3
     while i < 10:
         result = []
         id_l = int(sort_list_vk[i][1])
         result.append(id_l)
         for h in range(2, 10):
             result.append(sort_list_vk[i][h])
-        try:
-            for h in range(0, 3):
-                result.append(photo_list[id_l][h])
-        except KeyError:
-            result.append("У профиля нет фото")
-        except IndexError:
-            result.append("У профиля нет фото")
-        result_file.append(result)
+        for photo in photo_list[id_l][:photo_limit]:
+            result.append(photo)
         i += 1
+        result_file.append(result)
     print(result_file)
     with open('result.json', 'w', encoding='utf-8') as file:
         json.dump(result_file, file, indent=4, ensure_ascii=False)
@@ -328,33 +316,28 @@ def sort_by_interests(id_info, conn):
         except IndexError:
             print('нет 10-и в поиске')
         i += 1
-    photo_dic = {}
+    photo_dic = collections.defaultdict(list)
     with conn.cursor() as cur:
         cur.execute('SELECT * FROM photo_people_int ORDER BY id_vk DESC, likes DESC;')
         records = cur.fetchall()
-        for x in records:
-            photo_dic[int(x[1])] = []
         for x in records:
             photo_dic[int(x[1])].append(x[3])
     photo_list = photo_dic
     result_file = []
     i = 0
-    while i < 10:
-        result = []
-        try:
-            id_l = sort_list_by_interest[i][1]
+    try:
+        while i < 10:
+            result = []
+            id_l = int(sort_list_by_interest[i][1])
             result.append(id_l)
             for h in range(2, 7):
                 result.append(sort_list_by_interest[i][h])
-            try:
-                for h in range(0, 3):
-                    result.append(photo_list[id_l][h])
-            except KeyError:
-                result.append("У профиля нет фото")
-        except IndexError:
-            result.append('None')
-        result_file.append(result)
-        i += 1
+            for photo in photo_list[id_l][:photo_limit]:
+                result.append(photo)
+            i += 1
+            result_file.append(result)
+    except:
+        print('Не найдено ни одного совпадения по интересам')
     with open('result_int.json', 'w', encoding='utf-8') as file:
         json.dump(result_file, file, indent=4, ensure_ascii=False)
     print(result_file)
