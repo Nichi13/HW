@@ -225,7 +225,7 @@ def get_photo(sort_list_for_f, conn):
     photo_dic = collections.defaultdict(list)
     for y in list_for_id:
         with conn.cursor() as cur:
-            cur.execute("""SELECT * FROM photo_people WHERE id_vk = %s ORDER BY id_vk DESC, likes DESC;"""  % (y))
+            cur.execute("""SELECT * FROM photo_people WHERE id_vk = %s ORDER BY id_vk DESC, likes DESC;""" % (y))
             records = cur.fetchall()
             for x in records:
                 photo_dic[int(x[1])].append(x[3])
@@ -318,7 +318,7 @@ def sort_by_interests(id_info, conn, sort_list_vk):
     photo_dic = collections.defaultdict(list)
     for y in list_for_id:
         with conn.cursor() as cur:
-            cur.execute("""SELECT * FROM photo_people_int WHERE id_vk = %s ORDER BY id_vk DESC, likes DESC;"""  % (y))
+            cur.execute("""SELECT * FROM photo_people_int WHERE id_vk = %s ORDER BY id_vk DESC, likes DESC;""" % (y))
             records = cur.fetchall()
             for x in records:
                 photo_dic[int(x[1])].append(x[3])
@@ -337,7 +337,7 @@ def sort_by_interests(id_info, conn, sort_list_vk):
                 result.append(photo)
             i += 1
             result_file.append(result)
-    except:
+    except IndexError:
         print('...')
     with open('result_int.json', 'w', encoding='utf-8') as file:
         json.dump(result_file, file, indent=4, ensure_ascii=False)
