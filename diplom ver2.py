@@ -108,7 +108,7 @@ def params_for_search(id_info_vk):
         'country': country_id,
         'age_from': age_from_input,
         'age_to': age_to_input,
-        'count': 100,
+        'count': 1000,
         'v': 5.92,
         'sort': 0,
         'fields': 'books,common_count,interests,movies,music,'}
@@ -186,8 +186,7 @@ def sort_db_from_common_group_and_friends(conn):
             records = cur.fetchall()
             return records
 
-
-def get_photo(sort_list_for_f, conn):
+def create_photo_people_db():
     try:
         with conn.cursor() as cur:
             cur.execute('''
@@ -198,9 +197,12 @@ def get_photo(sort_list_for_f, conn):
         URL  text);
                 ''')
     except psycopg2.errors.DuplicateTable:
-        with psycopg2.connect(
-                "dbname ='found_people_db' user = 'postgres' password = '1'  host ='localhost'") as conn:
+        # with psycopg2.connect(
+        #         "dbname ='found_people_db' user = 'postgres' password = '1'  host ='localhost'") as conn:
             print('Претенденты подобраны, а сейчас мы выбираем самые лучшие фото для Вас')
+
+
+def get_photo(sort_list_for_f, conn):
     i = 0
     list_for_id =[]
     while i < 10:
@@ -238,7 +240,6 @@ def drop_table_photo_people(conn):
                 DROP TABLE photo_people;
             ''')
 
-
 def result_json(sort_list_vk):
     photo_list = get_photo(sort_list_vk, conn)
     result_file = []
@@ -267,17 +268,7 @@ def regexp(patern, text):
         result = 0
     return result
 
-
-def sort_by_interests(id_info, conn, sort_list_vk):
-    if id_info[0]['interests'] == '':
-        interes_id = input('Введите ваши интересы, например: музыка')
-    else:
-        interes_id = id_info[0]['interests']
-    sort_list_by_interest = []
-    for q in sort_list_vk:
-        res = regexp(interes_id, q[4])
-        if res == 1:
-            sort_list_by_interest.append(q)
+def create_photo_people_int_db():
     try:
         with conn.cursor() as cur:
             cur.execute('''
@@ -288,9 +279,23 @@ def sort_by_interests(id_info, conn, sort_list_vk):
     URL  text);
             ''')
     except psycopg2.errors.DuplicateTable:
-        with psycopg2.connect(
-                "dbname ='found_people_db' user = 'postgres' password = '1'  host ='localhost'") as conn:
+        # with psycopg2.connect(
+        #         "dbname ='found_people_db' user = 'postgres' password = '1'  host ='localhost'") as conn:
             print('подбираем фото')
+
+def sort_list_by_int(id_info, sort_list_vk):
+    if id_info[0]['interests'] == '':
+        interes_id = input('Введите ваши интересы, например: музыка')
+    else:
+        interes_id = id_info[0]['interests']
+    sort_list_by_interest = []
+    for q in sort_list_vk:
+        res = regexp(interes_id, q[4])
+        if res == 1:
+            sort_list_by_interest.append(q)
+    return sort_list_by_interest
+
+def get_photo_int(sort_list_by_interest):
     i = 0
     list_for_id = []
     while i < 10:
@@ -322,7 +327,9 @@ def sort_by_interests(id_info, conn, sort_list_vk):
             records = cur.fetchall()
             for x in records:
                 photo_dic[int(x[1])].append(x[3])
-    photo_list = photo_dic
+    return photo_dic
+
+def result_interests(conn,sort_list_by_interest, photo_list):
     result_file = []
     photo_limit = 3
     i = 0
@@ -364,8 +371,16 @@ if __name__ == '__main__':
         sort_list = sort_db_from_common_group_and_friends(conn)
         with psycopg2.connect(
                 "dbname ='found_people_db' user = 'postgres' password = '1'  host ='localhost'") as conn:
+            create_photo_people_db()
+        with psycopg2.connect(
+                "dbname ='found_people_db' user = 'postgres' password = '1'  host ='localhost'") as conn:
             result_json(sort_list)
         print('Результат вы найдете в json файле')
         x = input('Если вы хотите продолжить поиск по вашим интересам введите 1 ')
         if x == '1':
-            sort_by_interests(id_info, conn, sort_list)
+            with psycopg2.connect(
+                    "dbname ='found_people_db' user = 'postgres' password = '1'  host ='localhost'") as conn:
+                create_photo_people_int_db()
+            sort_list_by_interest = sort_list_by_int(id_info, sort_list)
+            photo_list = get_photo_int(sort_list_by_interest)
+            result_interests(conn, sort_list_by_interest, photo_list)
