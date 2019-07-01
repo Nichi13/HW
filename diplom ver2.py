@@ -108,7 +108,7 @@ def params_for_search(id_info_vk):
         'country': country_id,
         'age_from': age_from_input,
         'age_to': age_to_input,
-        'count': 1000,
+        'count': 100,
         'v': 5.92,
         'sort': 0,
         'fields': 'books,common_count,interests,movies,music,'}
@@ -193,7 +193,7 @@ def create_photo_people_db():
                     CREATE TABLE photo_people (
         id serial PRIMARY KEY,
         id_vk integer,
-        likes smallint,
+        likes integer,
         URL  text);
                 ''')
     except psycopg2.errors.DuplicateTable:
@@ -222,7 +222,7 @@ def get_photo(sort_list_for_f, conn):
                                       INSERT INTO photo_people (id_vk,likes, URL) VALUES ('%s','%s',$$%s$$);
                                """ % (id_list, likes, url))
         except KeyError:
-            print('Нашлось менее 10 совпадений')
+            print('')
         i += 1
     photo_dic = collections.defaultdict(list)
     for y in list_for_id:
@@ -233,12 +233,6 @@ def get_photo(sort_list_for_f, conn):
                 photo_dic[int(x[1])].append(x[3])
     return photo_dic
 
-
-def drop_table_photo_people(conn):
-        with conn.cursor() as cur:
-            cur.execute('''
-                DROP TABLE photo_people;
-            ''')
 
 def result_json(sort_list_vk):
     photo_list = get_photo(sort_list_vk, conn)
@@ -279,8 +273,6 @@ def create_photo_people_int_db():
     URL  text);
             ''')
     except psycopg2.errors.DuplicateTable:
-        # with psycopg2.connect(
-        #         "dbname ='found_people_db' user = 'postgres' password = '1'  host ='localhost'") as conn:
             print('подбираем фото')
 
 def sort_list_by_int(id_info, sort_list_vk):
@@ -369,9 +361,7 @@ if __name__ == '__main__':
                 create_tables_found_people(conn)
         add_found_people(found_people_list, conn)
         sort_list = sort_db_from_common_group_and_friends(conn)
-        with psycopg2.connect(
-                "dbname ='found_people_db' user = 'postgres' password = '1'  host ='localhost'") as conn:
-            create_photo_people_db()
+        create_photo_people_db()
         with psycopg2.connect(
                 "dbname ='found_people_db' user = 'postgres' password = '1'  host ='localhost'") as conn:
             result_json(sort_list)
