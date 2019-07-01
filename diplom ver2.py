@@ -108,7 +108,7 @@ def params_for_search(id_info_vk):
         'country': country_id,
         'age_from': age_from_input,
         'age_to': age_to_input,
-        'count': 100,
+        'count': 1000,
         'v': 5.92,
         'sort': 0,
         'fields': 'books,common_count,interests,movies,music,'}
