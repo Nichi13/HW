@@ -37,7 +37,7 @@ insert_info_found_people_text = """
                         '%s');
             """
 
-sort_found_people_text = """ WITH t AS (SELECT * FROM found_people ORDER BY id_vk DESC LIMIT 100)
+sort_found_people_text = """ WITH t AS (SELECT * FROM found_people ORDER BY id_vk DESC LIMIT 1000)
                                 SELECT
                                     * FROM t ORDER BY common_count DESC, common_group DESC;"""
 
